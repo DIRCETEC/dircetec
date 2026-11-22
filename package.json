@@ -1,10 +1,12 @@
 {
-  "name": "dircetec",
+  "name": "dircetec-worker",
   "version": "1.1.0",
   "private": true,
+  "description": "Website institucional da DIRCE Tecnologia no Cloudflare Workers Static Assets",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "deploy:dry-run": "wrangler deploy --dry-run",
     "check": "node scripts/check.mjs"
   },
   "devDependencies": {
