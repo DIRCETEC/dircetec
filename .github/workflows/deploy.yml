@@ -40,6 +40,42 @@ jobs:
             exit 1
           fi
 
+      - name: Diagnosticar token e conta Cloudflare sem expor segredos
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.CF_API_TOKEN?.trim() || '';
+          const account = process.env.CF_ACCOUNT_ID?.trim() || '';
+          if (!/^[a-f0-9]{32}$/i.test(account)) {
+            console.error('::error::CLOUDFLARE_ACCOUNT_ID precisa ser um identificador de conta Cloudflare com 32 caracteres hexadecimais, não o Zone ID.');
+            process.exit(1);
+          }
+          async function check(url) {
+            try {
+              const r = await fetch(url, {headers: {Authorization: 'Bearer ' + token}});
+              const j = await r.json();
+              return {http: r.status, success: j.success === true, status: j.result?.status ?? null, codes: (j.errors || []).map(e => e.code).filter(Boolean)};
+            } catch(e) {
+              return {http: 0, success: false, status: null, codes: ['network_error']};
+            }
+          }
+          const verified = await check('https://api.cloudflare.com/client/v4/user/tokens/verify');
+          console.log('Token Cloudflare: ' + (verified.success && verified.status === 'active' ? 'ATIVO' : 'NAO VALIDADO') + ' (HTTP ' + verified.http + ')');
+          if (!verified.success || verified.status !== 'active') {
+            console.error('::error::O token Cloudflare nao esta ativo ou nao pode ser verificado. Revise CLOUDFLARE_API_TOKEN.');
+            process.exit(1);
+          }
+          const scripts = await check('https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts');
+          console.log('Acesso a Workers na conta selecionada: ' + (scripts.success ? 'AUTORIZADO' : 'NEGADO') + ' (HTTP ' + scripts.http + '; codigos: ' + scripts.codes.join(',') + ')');
+          if (!scripts.success) {
+            console.error('::error::Sem acesso a Workers nessa conta. Confira se CLOUDFLARE_ACCOUNT_ID pertence a conta escolhida no token e se ele tem Account > Workers Scripts > Edit nessa conta.');
+            process.exit(1);
+          }
+          NODE
+
       - name: Publicar Worker dircetec
         uses: cloudflare/wrangler-action@v4
         with:
