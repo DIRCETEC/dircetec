@@ -1,0 +1,48 @@
+name: Publicar DIRCE TEC no Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dircetec-cloudflare-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Validar e publicar DIRCE
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obter arquivos
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Conferir páginas e arquivos
+        run: npm run check
+
+      - name: Verificar conexão segura com Cloudflare
+        env:
+          CF_TOKEN_PRESENT: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_PRESENT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          if [ -z "$CF_TOKEN_PRESENT" ] || [ -z "$CF_ACCOUNT_PRESENT" ]; then
+            echo "::error::A publicação precisa dos secrets CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID em Settings > Secrets and variables > Actions deste repositório. Nunca adicione esses valores ao código."
+            exit 1
+          fi
+
+      - name: Publicar Worker dircetec
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
