@@ -1,33 +1,32 @@
 # DIRCE Tecnologia | Site institucional
 
-Versão 1.1 — identidade visual oficial da DIRCE.
+Versão 1.1. Projeto independente do ORICSE. Código e identidade visual originais preservados.
 
-**Site independente do ORICSE.** O código e os arquivos estáticos ficam neste repositório GitHub, conta `DIRCETEC`; a conta Cloudflare que vai hospedar o site pode ser diferente.
+## Publicação: GitHub Actions + Cloudflare Workers via API Token
 
-## Publicação oficial: Cloudflare Workers Builds (Git integrado)
+Repositório: `DIRCETEC/dircetec` (branch `main`).
+Worker: `dircetec` (configurado em `wrangler.jsonc`).
 
-Este repositório não usa mais o workflow externo de deploy por token do GitHub Actions. O deploy deve ser configurado **diretamente no painel da Cloudflare**, por meio da integração nativa GitHub → Workers Builds. A Cloudflare pode gerar automaticamente o token interno necessário para seus builds. Os antigos secrets `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` do GitHub **não são usados pelo site** e podem ser removidos pelo administrador quando for conveniente.
+A conta Cloudflare usada para o deploy pode ser diferente da conta GitHub. O token e o Account ID precisam corresponder à **mesma conta Cloudflare**.
 
-1. Acesse https://dash.cloudflare.com/ e escolha **a conta Cloudflare em que a DIRCE será hospedada**. Não toque na conta/Workers do ORICSE.
-2. Abra **Workers & Pages**. Antes de criar, veja se já existe um Worker chamado `dircetec`:
-   - **Se não existir:** clique em **Create application** (ou Create), selecione criar a partir de um repositório Git e escolha GitHub.
-   - **Se já existir:** entre no Worker `dircetec` e abra **Settings > Builds > Connect** (ou equivalente) para vincular seu repositório.
-3. Se for solicitado, autorize o aplicativo GitHub **Cloudflare Workers and Pages** para acessar apenas o repositório `DIRCETEC/dircetec`. A conta do GitHub é independente da conta Cloudflare.
-4. Configure:
-   - Repositório: `DIRCETEC/dircetec`
-   - Branch: `main`
-   - Nome do Worker: `dircetec` (deve coincidir com `wrangler.jsonc`)
-   - Root directory: `/` (raiz)
-   - Build command: **em branco** (site estático)
-   - Deploy command: `npx wrangler deploy`
-   - Build token: use o token gerado pela própria Cloudflare, quando oferecido.
-5. Clique em **Save and Deploy / Deploy** e confirme no painel o endereço `*.workers.dev`. Verifique página inicial, `/privacidade.html`, assets, navegação mobile e 404.
+### Reiniciar as credenciais com segurança
 
-Se houver erro de Worker existente/nome em uso, **não apague nada**. Verifique primeiro a qual projeto o nome pertence e quais rotas/dominios estão vinculados.
+1. No painel da Cloudflare, selecione a conta onde a DIRCE será hospedada e copie o **Account ID** em Workers & Pages > Account Details. Não confunda Account ID com Zone ID.
+2. Confirme se já existe um Worker `dircetec` *nessa conta*. Se for um Worker novo e ainda não existir, seu token precisará de **Workers Admin** no escopo de produto para criá-lo via `wrangler deploy`. Para reduzir privilégios, você pode primeiro criar esse Worker `dircetec` manualmente no dashboard e então usar um token de **Workers Editor** apenas para publicar versões futuras.
+3. Crie **novo API Token** na Cloudflare, limitado à conta que hospedará a DIRCE. Não use Global API Key. Nome sugerido: `DIRCE TEC GitHub Deploy`.
+4. Acesse https://github.com/DIRCETEC/dircetec/settings/secrets/actions e substitua os valores antigos de:
+   - `CLOUDFLARE_API_TOKEN` = novo token, nunca publicado ou compartilhado no chat;
+   - `CLOUDFLARE_ACCOUNT_ID` = Account ID da conta escolhida.
+5. Execute **manualmente** o workflow `Publicar DIRCE TEC na Cloudflare` em https://github.com/DIRCETEC/dircetec/actions/workflows/deploy.yml, escolhendo Run workflow > main.
+6. Só após confirmar um deploy bem-sucedido, revogue o token antigo (se exclusivo da DIRCE) e considere habilitar o deploy automático por push.
 
-Documentação oficial: https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/
+Neste momento o workflow é **somente manual** (`workflow_dispatch`), para não disparar tentativas usando os secrets antigos.
 
-## Testes locais
+Documentação:
+- https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+- https://developers.cloudflare.com/workers/authorization/workers/
+
+### Comandos
 
 ```sh
 npm install
@@ -35,22 +34,18 @@ npm run check
 npm run dev
 ```
 
-O GitHub Action `.github/workflows/check.yml` apenas valida os arquivos. Os deploys passam a ser feitos exclusivamente no Workers Builds.
+Os testes automáticos do GitHub ficam em `.github/workflows/check.yml`. A publicação manual usa `.github/workflows/deploy.yml`.
 
-## Arquivos
+### Estrutura
 
 - `public/index.html` — página principal
 - `public/privacidade.html` — aviso de privacidade
 - `public/404.html` — página de erro
-- `public/assets/` — identidade visual otimizada, CSS e JavaScript
+- `public/assets/` — imagens, favicon, CSS e JavaScript
 - `brand-originais/` — três logos PNG originais
-- `public/_headers` — cabeçalhos
-- `wrangler.jsonc` — configuração Worker Static Assets
+- `public/_headers` — cabeçalhos de segurança e cache
+- `wrangler.jsonc` — Worker Static Assets
 
-## Pendências de negócio
+### Pendências
 
-O e-mail `atendimento@oricse.com.br` é provisório, como indicado no site; atualizar quando o canal próprio DIRCE estiver definido. Ainda não há domínio próprio confirmado para a DIRCE. O site não tem banco de dados, formulário dinâmico nem pagamentos.
-
-## Segurança
-
-Nunca incluir senhas, API tokens ou Account IDs em arquivos versionados. Não tocar nos Workers, rotas ou DNS do ORICSE. Manter o nome do Worker e o repositório restritos à DIRCE TEC.
+O email `atendimento@oricse.com.br` permanece provisório até que seja definido o canal de atendimento DIRCE. Nenhum domínio próprio foi confirmado. Não alterar repositórios, Workers, DNS ou rotas do ORICSE. Não adicionar tokens ou senhas em arquivos versionados.
