@@ -1,0 +1,51 @@
+name: Publicar DIRCE TEC na Cloudflare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dircetec-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Validar e publicar DIRCE TEC
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obter código da DIRCE
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verificar integridade do site
+        run: npm run check
+
+      - name: Confirmar novas credenciais Cloudflare
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::Configure CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if ! [[ "$CF_ACCOUNT" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID deve ser o Account ID, nao o Zone ID."
+            exit 1
+          fi
+          echo "Credenciais presentes. O deploy verificara as permissoes reais."
+
+      - name: Publicar no Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
